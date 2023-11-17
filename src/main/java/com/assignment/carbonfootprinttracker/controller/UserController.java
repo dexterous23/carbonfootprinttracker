@@ -5,46 +5,70 @@ import com.assignment.carbonfootprinttracker.dto.UserRegistrationDto;
 import com.assignment.carbonfootprinttracker.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 import org.springframework.web.bind.annotation.*;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
 @RestController
 @RequestMapping("/users")
 public class UserController {
 
-    private final UserService userService;
+    @Autowired
+    private UserService userService;
 
     @Autowired
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
+    private AuthenticationManager authenticationManager;
 
-    @PostMapping("/registration")
+    @PostMapping("/register")
     public ResponseEntity<?> registerUser(@RequestBody UserRegistrationDto registrationDto) {
+        userService.registerNewUserAccount(registrationDto);
+        return ResponseEntity.ok("User registered successfully");
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<?> loginUser(@RequestBody UserRegistrationDto loginDto) {
         try {
-            userService.registerNewUserAccount(registrationDto);
-            return ResponseEntity.ok("User successfully registered");
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(loginDto.getUsername(), loginDto.getPassword())
+            );
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+            return ResponseEntity.ok("User logged in successfully");
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Registration error: " + e.getMessage());
+            return ResponseEntity.badRequest().body("Invalid login credentials");
         }
     }
 
-    @PostMapping("/{userId}/profile")
-    public ResponseEntity<?> updateUserProfile(@PathVariable Long userId, @RequestBody UserProfileDto profileDto) {
-        try {
-            userService.updateUserProfile(userId, profileDto);
-            return ResponseEntity.ok("Profile updated successfully");
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body("Error updating profile: " + e.getMessage());
+    @PostMapping("/logout")
+    public ResponseEntity<?> logoutUser(HttpServletRequest request, HttpServletResponse response) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null) {
+            new SecurityContextLogoutHandler().logout(request, response, auth);
         }
+        return ResponseEntity.ok("User logged out successfully");
     }
 
-    @GetMapping("/{userId}/profile")
-    public ResponseEntity<UserProfileDto> getUserProfile(@PathVariable Long userId) {
-        try {
-            UserProfileDto profileDto = userService.getUserProfile(userId);
-            return ResponseEntity.ok(profileDto);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(null);
-        }
+
+    @PostMapping("/profile")
+    public ResponseEntity<?> createOrUpdateUserProfile(@RequestBody UserProfileDto profileDto) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserName = authentication.getName();
+
+        userService.createOrUpdateUserProfile(currentUserName, profileDto);
+        return ResponseEntity.ok("User profile updated successfully");
+    }
+
+    @GetMapping("/profile")
+    public ResponseEntity<UserProfileDto> getUserProfile() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserName = authentication.getName();
+
+        UserProfileDto profileDto = userService.getUserProfile(currentUserName);
+        return ResponseEntity.ok(profileDto);
     }
 }

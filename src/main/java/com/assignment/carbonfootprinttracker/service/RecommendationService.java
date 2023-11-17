@@ -1,30 +1,46 @@
 package com.assignment.carbonfootprinttracker.service;
 
-import com.assignment.carbonfootprinttracker.dto.CarbonFootprintInputDto;
+import com.assignment.carbonfootprinttracker.model.CarbonFootprintRecord;
+import com.assignment.carbonfootprinttracker.model.User;
+import com.assignment.carbonfootprinttracker.repository.CarbonFootprintRecordRepository;
+import com.assignment.carbonfootprinttracker.repository.UserRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class RecommendationService {
 
-    public List<String> generateRecommendations(CarbonFootprintInputDto inputDto) {
+    @Autowired
+    private CarbonFootprintRecordRepository recordRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    public List<String> generateRecommendationsForUser(String username) {
+        User user = userRepository.findByUsername(username);
+        if (user == null) {
+            throw new IllegalArgumentException("User not found");
+        }
+
+        Optional<CarbonFootprintRecord> latestRecordOpt = recordRepository.findLatestByUserId(user.getId());
+        if (latestRecordOpt.isEmpty()) {
+            throw new IllegalStateException("No carbon footprint record found for user");
+        }
+
+        CarbonFootprintRecord latestRecord = latestRecordOpt.get();
+        return generateRecommendationsBasedOnRecord(latestRecord);
+    }
+
+    private List<String> generateRecommendationsBasedOnRecord(CarbonFootprintRecord record) {
         List<String> recommendations = new ArrayList<>();
 
-        // Example: Provide recommendations based on transportation data
-        if (inputDto.getTransportationData().getCarMiles() > 50) {
-            recommendations.add("Consider using public transport or carpooling to reduce car mileage.");
+        if (record.getCarbonFootprint() > 300) {
+            recommendations.add("Consider reducing your energy usage to lower your carbon footprint.");
         }
-
-        // Example: Provide recommendations based on energy usage
-        if (inputDto.getEnergyData().getElectricityUsage() > 500) {
-            recommendations.add("Consider switching to energy-efficient appliances.");
-        }
-
-        // Add more personalized recommendations based on diet, energy, and consumption data
-
         return recommendations;
     }
 }
-

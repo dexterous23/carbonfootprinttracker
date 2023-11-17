@@ -5,6 +5,8 @@ import com.assignment.carbonfootprinttracker.service.CarbonCalculatorService;
 import com.assignment.carbonfootprinttracker.service.RecommendationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,9 +22,12 @@ public class CarbonCalculatorController {
     private RecommendationService recommendationService;
 
     @PostMapping("/calculate")
-    public ResponseEntity<?> calculateFootprint(@RequestBody CarbonFootprintInputDto inputDto) {
-        double footprint = carbonCalculatorService.calculateCarbonFootprint(inputDto);
-        List<String> recommendations = recommendationService.generateRecommendations(inputDto);
+    public ResponseEntity<?> calculateFootprint() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentUserName = authentication.getName();
+
+        double footprint = carbonCalculatorService.getLatestFootprintForUser(currentUserName);
+        List<String> recommendations = recommendationService.generateRecommendationsForUser(currentUserName);
         return ResponseEntity.ok(new CalculationResultDto(footprint, recommendations));
     }
 
